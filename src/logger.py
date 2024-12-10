@@ -23,11 +23,14 @@
 
 import logging
 import os
+from logging.handlers import RotatingFileHandler
 
 logger = None
+formatter = None
+log_file = None
 
 def get_logger(log_dir):
-    logger = logging.getLogger('AAD_freeIPA')
+    logger = logging.getLogger('AAD->IPA')
     if not logger.hasHandlers():
         logger.setLevel(logging.INFO)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -35,7 +38,7 @@ def get_logger(log_dir):
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
         
-        log_file = os.path.join(log_dir, 'aad_sync.log')
+        log_file = os.path.join(log_dir, 'aad_freeipa_sync.log')
         file_handler = logging.FileHandler(log_file)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
@@ -43,7 +46,11 @@ def get_logger(log_dir):
         console_handler = logging.StreamHandler()
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
-    
+
     return logger
 
+def rotate_logger():
+    rotating_handler = RotatingFileHandler(log_file, maxBytes=5000000, backupCount=5)
+    rotating_handler.setFormatter(formatter)
+    logger.addHandler(rotating_handler)
 

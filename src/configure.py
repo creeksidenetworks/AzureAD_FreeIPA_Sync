@@ -16,7 +16,7 @@ class Config:
         'freeipa': ['server', 'user', 'password', 'basedn'],
         'sync': ['interval', 'groups'],
         'mail': ['server', 'port', 'user', 'password'],
-        'logging': ['path']
+        'logging': ['level']
     }
 
     def __init__(self, config_file_path):

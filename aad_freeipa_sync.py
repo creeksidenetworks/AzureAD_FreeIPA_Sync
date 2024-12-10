@@ -2,11 +2,9 @@
 # Azure AD user/group FreeIPA sync utility
 # Copyright (c) 2024 Jackson Tong, Creekside Networks LLC.
 
-import sys
+
+import os
 import time
-import argparse
-import textwrap
-import json
 # Import functions from src/aad.py
 import src.aad
 import src.logger
@@ -16,6 +14,38 @@ import src.sync_user
 
 from src.sendmail import send_email
 from datetime import datetime
+
+sample_config = """
+[azure_ad]
+client_id = <azure application client id>
+client_secret = <azure application client id>
+tenant_id = <azure tenant id>
+scope = https://graph.microsoft.com/.default
+token_cache = .token_cache
+
+[freeipa]
+server = <freeipa server ip or hostname>
+realm = <freeipa realm>
+user = cn=directory manager
+password = <directory manager password>
+basedn = dc=<your dc1>,dc=<your dc2>
+
+[newuser]
+password = <new user default password>
+
+[sync]
+interval = <sync period>
+
+[mail]
+recipients = <email recipients, separate by comma>
+server = smtp.office365.com
+port = 587
+user = <email account used to send>
+password = <account password or application password>
+
+[logging]
+level = INFO        
+"""
 
 # main function
 def main():
@@ -30,28 +60,33 @@ def main():
 """
     print(title)
 
-    # Parse command-line arguments
-    parser = argparse.ArgumentParser(description='Sync Azure AD users and groups to FreeIPA.')
-    parser.add_argument('--config', required=True, help='Path to the configuration file')
-
-    # Check if the configuration file is provided
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(1)
-    else:
-        args = parser.parse_args()
-
     # read and interpret the configuration file
-    config = src.configure.Config(args.config)
+    root_dir = os.path.abspath(os.path.dirname(__file__))
+    cfg_dir = os.path.join(root_dir, 'cfg')
+    config_file_path = os.path.join(cfg_dir, 'aad_freeipa_sync.conf')
+
+    if not os.path.exists(cfg_dir):
+        os.makedirs(cfg_dir)
+    
+    if not os.path.exists(config_file_path):
+        # dump a sample configuration file        
+        with open(config_file_path, 'w') as config_file:
+            config_file.write(sample_config)
+        print(f"Sample configuration file created at {config_file_path}")
+        print("Please edit the configuration file and run the script again.")
+        exit(0)
+    
+    config = src.configure.Config(config_file_path)
 
     # prepare logger
-    log_dir = config.get('logging', 'path')
+    log_dir = os.path.join(root_dir, 'logs')
     src.logger.logger = src.logger.get_logger(log_dir)
 
     # get the Azure AD access token
+    token_cache_file = os.path.join(cfg_dir, config.get('azure_ad', 'token_cache'))
 
     access_token = src.aad.get_aad_access_token(
-        token_cache_file    = config.get('azure_ad', 'token_cache'),
+        token_cache_file    = token_cache_file,
         tenant_id           = config.get('azure_ad', 'tenant_id'),
         client_id           = config.get('azure_ad', 'client_id'),
         client_secret       = config.get('azure_ad', 'client_secret'),
@@ -80,10 +115,14 @@ def main():
                     subject = f"AAD to FreeIPA Sync Report - {timestamp}",
                     body   = report,
                     recipients = config.get('mail', 'recipients').split(','))
+            else:
+                src.logger.logger.info("No new users found.")
         except Exception as e:
             src.logger.logger.error(f"An error occurred: {e}")
 
-        break
+        # rotate the log file
+        src.logger.rotate_logger()
+
         # Wait for 5 minutes before running again
         time.sleep(int(config.get('sync', 'interval')))
 
