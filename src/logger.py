@@ -26,8 +26,6 @@ import os
 from logging.handlers import RotatingFileHandler
 
 logger = None
-formatter = None
-log_file = None
 
 def get_logger(log_dir):
     logger = logging.getLogger('AAD->IPA')
@@ -47,10 +45,11 @@ def get_logger(log_dir):
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
 
+        rotating_handler = RotatingFileHandler(log_file, maxBytes=5000000, backupCount=5)
+        rotating_handler.setFormatter(formatter)
+        logger.addHandler(rotating_handler)
+
     return logger
 
-def rotate_logger():
-    rotating_handler = RotatingFileHandler(log_file, maxBytes=5000000, backupCount=5)
-    rotating_handler.setFormatter(formatter)
-    logger.addHandler(rotating_handler)
+
 

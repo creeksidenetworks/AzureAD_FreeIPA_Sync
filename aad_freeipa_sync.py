@@ -14,6 +14,7 @@ import src.sync_user
 
 from src.sendmail import send_email
 from datetime import datetime
+import argparse
 
 sample_config = """
 [azure_ad]
@@ -60,30 +61,20 @@ def main():
 """
     print(title)
 
-    # read and interpret the configuration file
-    root_dir = os.path.abspath(os.path.dirname(__file__))
-    cfg_dir = os.path.join(root_dir, 'cfg')
-    config_file_path = os.path.join(cfg_dir, 'aad_freeipa_sync.conf')
+    parser = argparse.ArgumentParser(description='Azure AD to FreeIPA Sync Utility')
+    parser.add_argument('--config', type=str, help='Path to the configuration file', default='./cfg/aad_freeipa_sync.conf')
+    args = parser.parse_args()
 
-    if not os.path.exists(cfg_dir):
-        os.makedirs(cfg_dir)
-    
-    if not os.path.exists(config_file_path):
-        # dump a sample configuration file        
-        with open(config_file_path, 'w') as config_file:
-            config_file.write(sample_config)
-        print(f"Sample configuration file created at {config_file_path}")
-        print("Please edit the configuration file and run the script again.")
-        exit(0)
-    
+    config_file_path = os.path.abspath(args.config)
+    root_dir = os.path.dirname(os.path.dirname(config_file_path))
+
     config = src.configure.Config(config_file_path)
 
     # prepare logger
-    log_dir = os.path.join(root_dir, 'logs')
-    src.logger.logger = src.logger.get_logger(log_dir)
+    src.logger.logger = src.logger.get_logger(os.path.join(root_dir,"log"))
 
     # get the Azure AD access token
-    token_cache_file = os.path.join(cfg_dir, config.get('azure_ad', 'token_cache'))
+    token_cache_file = os.path.join(root_dir, config.get('azure_ad', 'token_cache'))
 
     access_token = src.aad.get_aad_access_token(
         token_cache_file    = token_cache_file,
@@ -119,9 +110,6 @@ def main():
                 src.logger.logger.info("No new users found.")
         except Exception as e:
             src.logger.logger.error(f"An error occurred: {e}")
-
-        # rotate the log file
-        src.logger.rotate_logger()
 
         # Wait for 5 minutes before running again
         time.sleep(int(config.get('sync', 'interval')))
