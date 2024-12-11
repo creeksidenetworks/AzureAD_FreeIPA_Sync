@@ -14,7 +14,7 @@ class Config:
     MANDATORY_KEYS = {
         'azure_ad': ['client_id', 'client_secret', 'tenant_id', 'scope', 'token_cache'],
         'freeipa': ['server', 'user', 'password', 'basedn'],
-        'sync': ['interval', 'groups'],
+        'sync': ['interval'],
         'mail': ['server', 'port', 'user', 'password'],
         'logging': ['level']
     }
